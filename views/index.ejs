@@ -12,7 +12,7 @@
 	<script>
 
 	// creating a new websocket
-	var socket = io.connect('http://localhost:3000');
+	var socket = io.connect('http://lilith:3000');
 	// on message recived we print the new data inside the #container div
 	socket.on('notification', function (data) {
 	  onNotify(data);
