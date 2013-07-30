@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+    
+    <head>
+        <title>Air Home</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <script src="/lib/jquery-1.6.4.js"></script>
+        <script src="/lib/jquery.mobile-1.1.0.js"></script>
+        <script src="socket.io/socket.io.js"></script>
+        <link href="/css/jquery.mobile.structure-1.1.0.css" rel="stylesheet">
+        <link href="/css/jquery.mobile.theme-1.1.0.css" rel="stylesheet">
+	<script>
+
+	// creating a new websocket
+	var socket = io.connect('http://localhost:3000');
+	// on message recived we print the new data inside the #container div
+	socket.on('notification', function (data) {
+	  onNotify(data);
+	});
+	
+  function onNotify(data) {
+	var channelList = "<legend></legend>";
+	$.each(data.channels,function(index,channel){
+	channelList += '<input type="radio" id="channel' + index + '" name="channel" value="channel' + index + '"';
+	if (channel.selected) {
+	  channelList += ' checked="checked"';
+	}
+	channelList += ' data="' + channel.id + '">';
+	channelList += '<label for="channel' + index + '">' + channel.title + '</label>';
+	});
+	
+	var speakerList = "";
+	$.each(data.speakers,function(index,speaker) {
+	  var speakerId = 'speaker' + speaker.id;
+	  var checkedValue = speaker.selected != undefined ? ' checked="checked"' : '';
+	  var volumeDisabled = speaker.selected != undefined ? '' : ' style="display: none"';
+      speakerList += '<input type="checkbox" id="' + speakerId + '" name="' + speakerId + '" value="true" class="speakerButton"' + checkedValue + '>';
+      speakerList += '<label for="' + speakerId + '">' + speaker.title + '</label>';
+      speakerList += '<div data-role="fieldcontain" id="' + speakerId + 'Volume"' + volumeDisabled + '>';
+      speakerList += '<input type="range" id="' + speakerId + 'Volume-range" value="' + speaker.volume + '" min="0" max="100" step="1" class="speakerVolume" data="' + speakerId + '">';
+      speakerList += '</div>';
+    });
+	
+	$('#speakerSet').empty();
+	$('#channelSet').html(channelList);
+	$('#channelSet input').checkboxradio();
+	$('#channelSet input').bind("change", function(event) {
+		socket.emit('channelChange', { id: $(this).attr("data") });
+	});
+    $('#channelSet .ui-btn').removeClass('ui-btn-corner-all');
+    $('#channelSet .ui-btn:first').addClass('ui-corner-top');
+    $('#channelSet .ui-btn:last').addClass('ui-corner-bottom ui-controlgroup-last');
+    $('#speakerSet').html(speakerList);
+    $('.speakerButton').checkboxradio();
+    $('.speakerButton').bind ("change", function (event) {
+        var id = $(this).attr("id");
+        var selected = undefined;
+        if ($(this).prop("checked")) {
+          selected = true;
+        }
+        var volume = $('#' + id + 'Volume-range').attr("value");
+		socket.emit('speakerChange', { id: id, selected: selected, volume: volume });
+		if (selected) {
+			$('#' + id + 'Volume').show();
+		} else {
+			$('#' + id + 'Volume').hide();
+		}
+    });
+    $('.speakerVolume').slider();
+    $('.speakerVolume').bind("change", function(event) {
+    	var volume = $(this).val();
+    	var id = $(this).attr("data");
+    	socket.emit('speakerChange', { id: id, selected: true, volume: volume });
+    });
+  }
+
+	</script>
+    </head>
+    
+    <body>
+        <div data-role="page" id="speakerPage" data-title="Lautsprecher">
+            <div data-role="header">
+                <h1>Lautsprecher</h1>
+            </div>
+            <div data-role="content">
+                <a data-role="button" id="allSpeakers">Alle ausw&auml;hlen</a>
+                <span id="speakerSet">
+                </span>
+            </div>
+            <div data-role="footer">
+                <div data-role="navbar">
+                    <ul>
+                        <li>
+                            <a data-role="button" href="#channelPage" data-transition="flip">Kan&auml;le</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div data-role="page" id="channelPage" data-title="Kanalauswahl">
+            <div data-role="header">
+                <h1>Kan&auml;le</h1>
+            </div>
+            <div data-role="content">
+                <fieldset id="channelSet" data-role="controlgroup">
+                    <legend></legend>
+                </fieldset>
+            </div>
+            <div data-role="footer">
+                <div data-role="navbar">
+                    <ul>
+                        <li>
+                            <a data-role="button" href="#speakerPage" data-transition="flip">Lautsprecher</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </body>
+
+</html>
