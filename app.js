@@ -4,7 +4,6 @@
  */
 
 var express = require('express')
-  , port = process.env.PORT || 3000
   , routes = require('./routes')
   , user = require('./routes/user')
   , http = require('http')
@@ -19,6 +18,7 @@ var express = require('express')
   })
   , POLLING_INTERVAL = 3000
   , pollingTimer
+  , zoneServer = 'lilith'
   , selectedChannel = 0;  
 
 var app = express();
@@ -41,7 +41,6 @@ if ('development' == app.get('env')) {
 }
 
 app.get('/', routes.index);
-app.get('/users', user.list);
 
 var server = http.createServer(app);
 var io = require('socket.io').listen(server);
@@ -69,6 +68,7 @@ io.sockets.on( 'connection', function ( socket ) {
 	socket.on("speakerChange", function(data) {
 		console.log("speaker " + data.id + " changed to " + data.selected + " and volume " + data.volume);
 		speakersState[data.id] = { selected: data.selected, volume: data.volume };
+		updateSpeaker(data.id, data.selected);
 	});
 	socket.on("channelChange", function(data) {
 		console.log("channel " + data.id + " set.");
@@ -108,7 +108,7 @@ var pollingLoop = function () {
 	});
 	speakerQuery.on('error', socketError).on('result', function( speaker ) {
 		// it fills our array looping on each user row inside the db
-		var state = speakersState['speaker' + speaker.id];
+		var state = speakersState[speaker.id];
 		if (state) {
 			speaker.selected = state.selected;
 			speaker.volume = state.volume;
@@ -145,14 +145,21 @@ function updateUrl(channelId) {
 	var channelQuery = connection.query('SELECT url FROM channels where id=' + channelId + ' ORDER BY order_number ASC');
 	channelQuery.on("result", function(data) {
 		var urlPath = '/url/play?url=' + data.url;
-		console.log("LILITH: calling " + urlPath);
-		var options = {
-				host : 'lilith',
-				port : 8001,
-				path: urlPath
-		};
-		http.get({hostname:'lilith', port: 8001, path: urlPath, agent:false}, function (res) {
-			console.log("request executed: " + res);
-		});
+		callZoneServer(urlPath);
+	});
+}
+
+function updateSpeaker(speakerId, addFlag) {
+	var speakerQuery = connection.query('SELECT ip FROM speakers where id=' + speakerId);
+	speakerQuery.on("result", function(data) {
+		var urlPath = '/host' + (addFlag ? '/add' : '/del') + '?host=' + data.ip;
+		callZoneServer(urlPath);
+	});
+}
+
+function callZoneServer(urlPath) {
+	console.log("LILITH: calling " + urlPath);
+	http.get({hostname:zoneServer, port: 8001, path: urlPath, agent:false}, function (res) {
+		console.log("request executed: " + res);
 	});
 }

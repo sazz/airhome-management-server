@@ -34,7 +34,7 @@
 	  var speakerId = 'speaker' + speaker.id;
 	  var checkedValue = speaker.selected != undefined ? ' checked="checked"' : '';
 	  var volumeDisabled = speaker.selected != undefined ? '' : ' style="display: none"';
-      speakerList += '<input type="checkbox" id="' + speakerId + '" name="' + speakerId + '" value="true" class="speakerButton"' + checkedValue + '>';
+      speakerList += '<input type="checkbox" id="' + speakerId + '" name="' + speakerId + '" data="' + speaker.id + '" value="true" class="speakerButton"' + checkedValue + '>';
       speakerList += '<label for="' + speakerId + '">' + speaker.title + '</label>';
       speakerList += '<div data-role="fieldcontain" id="' + speakerId + 'Volume"' + volumeDisabled + '>';
       speakerList += '<input type="range" id="' + speakerId + 'Volume-range" value="' + speaker.volume + '" min="0" max="100" step="1" class="speakerVolume" data="' + speakerId + '">';
@@ -53,17 +53,17 @@
     $('#speakerSet').html(speakerList);
     $('.speakerButton').checkboxradio();
     $('.speakerButton').bind ("change", function (event) {
-        var id = $(this).attr("id");
+        var id = $(this).attr("data");
         var selected = undefined;
         if ($(this).prop("checked")) {
           selected = true;
         }
-        var volume = $('#' + id + 'Volume-range').attr("value");
+        var volume = $('#speaker' + id + 'Volume-range').attr("value");
 		socket.emit('speakerChange', { id: id, selected: selected, volume: volume });
 		if (selected) {
-			$('#' + id + 'Volume').show();
+			$('#speaker' + id + 'Volume').show();
 		} else {
-			$('#' + id + 'Volume').hide();
+			$('#speaker' + id + 'Volume').hide();
 		}
     });
     $('.speakerVolume').slider();
