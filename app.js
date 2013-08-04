@@ -18,11 +18,13 @@ var express = require('express')
   })
   , POLLING_INTERVAL = 3000
   , pollingTimer
-  , zoneServer = 'lilith'
-  , selectedChannel = 0;  
+  , zoneManagerModule = require('./zonemanager.js');
 
 var app = express();
-var speakersState = {};
+var deviceMap = {};
+var speakerIpMap = {};
+var channelMap = {};
+var zoneManager = new zoneManagerModule.ZoneManager();
 
 // all environments
 app.set('port', process.env.PORT || 3000);
@@ -67,13 +69,20 @@ io.sockets.on( 'connection', function ( socket ) {
 	});
 	socket.on("speakerChange", function(data) {
 		console.log("speaker " + data.id + " changed to " + data.selected + " and volume " + data.volume);
-		speakersState[data.id] = { selected: data.selected, volume: data.volume };
-		updateSpeaker(data.id, data.selected);
+		if (data.selected) {
+			zoneManager.addHost('zoneA', data.id, speakerIpMap[data.id]);
+		} else {
+			zoneManager.delHost(data.id);
+		}
+	});
+	socket.on("volumeChange", function(data) {
+		console.log("volume change for " + data.id + " with volume " + data.volume);
+		zoneManager.setVolume(data.id, data.volume);
 	});
 	socket.on("channelChange", function(data) {
 		console.log("channel " + data.id + " set.");
-		selectedChannel = data.id;
-		updateUrl(selectedChannel);
+		var channelData = channelMap[data.id];
+		zoneManager.setZoneChannelUrl('zoneA', data.id, channelData.url, channelData.title);
 	});
 	console.log( 'A new socket is connected!' );
 	connectionsArray.push( socket );
@@ -91,14 +100,19 @@ var updateSockets = function ( data ) {
 
 var pollingLoop = function () {
 	// Doing the database query
-	var channelQuery = connection.query('SELECT id, title FROM channels ORDER BY order_number ASC');
+	var channelQuery = connection.query('SELECT id, title, url FROM channels ORDER BY order_number ASC');
 	var speakerQuery = connection.query('SELECT id, title, ip FROM speakers ORDER BY order_number ASC');
 	var channels = [], speakers = []; // this array will contain the result of our db query
 	var channelDone = false, speakerDone = false;
 	// setting the query listeners
+
 	channelQuery.on('error', socketError).on('result', function( channel ) {
 		// it fills our array looping on each user row inside the db
-		channel.selected = channel.id == selectedChannel;
+		channelMap[channel.id] = {
+				title: channel.title,
+				url: channel.url
+		};
+		channel.selected = channel.id == zoneManager.getZoneChannelId('zoneA');
 		channels.push( channel );
 	}).on('end', function() {
 		channelDone = true;
@@ -107,16 +121,14 @@ var pollingLoop = function () {
 		}
 	});
 	speakerQuery.on('error', socketError).on('result', function( speaker ) {
-		// it fills our array looping on each user row inside the db
-		var state = speakersState[speaker.id];
-		if (state) {
-			speaker.selected = state.selected;
-			speaker.volume = state.volume;
+		speakerIpMap[speaker.id] = speaker.ip;
+		console.log('for id ' + speaker.id + ' volume ' + zoneManager.getVolume(speaker.id));
+		speaker.volume = zoneManager.getVolume(speaker.id);
+		if (zoneManager.getZoneId(speaker.id) == 'zoneA') {
+			speaker.selected = true;
 		} else {
 			speaker.selected = undefined;
-			speaker.volume = 50;
 		}
-		console.log(speaker.selected);
 		speakers.push( speaker );
 	}).on('end', function() {
 		speakerDone = true;
@@ -140,26 +152,3 @@ function socketError(err) {
 	console.log( err );
 	updateSockets( err );
 }	
-
-function updateUrl(channelId) {
-	var channelQuery = connection.query('SELECT url FROM channels where id=' + channelId + ' ORDER BY order_number ASC');
-	channelQuery.on("result", function(data) {
-		var urlPath = '/url/play?url=' + data.url;
-		callZoneServer(urlPath);
-	});
-}
-
-function updateSpeaker(speakerId, addFlag) {
-	var speakerQuery = connection.query('SELECT ip FROM speakers where id=' + speakerId);
-	speakerQuery.on("result", function(data) {
-		var urlPath = '/host' + (addFlag ? '/add' : '/del') + '?host=' + data.ip;
-		callZoneServer(urlPath);
-	});
-}
-
-function callZoneServer(urlPath) {
-	console.log("LILITH: calling " + urlPath);
-	http.get({hostname:zoneServer, port: 8001, path: urlPath, agent:false}, function (res) {
-		console.log("request executed: " + res);
-	});
-}

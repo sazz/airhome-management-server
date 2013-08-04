@@ -12,8 +12,8 @@
 	<script>
 
 	// creating a new websocket
-	var socket = io.connect('http://lilith:3000');
-	// on message recived we print the new data inside the #container div
+	var socket = io.connect('http://' + window.location.hostname + ':3000');
+	// on message received we print the new data inside the #container div
 	socket.on('notification', function (data) {
 	  onNotify(data);
 	});
@@ -37,7 +37,7 @@
       speakerList += '<input type="checkbox" id="' + speakerId + '" name="' + speakerId + '" data="' + speaker.id + '" value="true" class="speakerButton"' + checkedValue + '>';
       speakerList += '<label for="' + speakerId + '">' + speaker.title + '</label>';
       speakerList += '<div data-role="fieldcontain" id="' + speakerId + 'Volume"' + volumeDisabled + '>';
-      speakerList += '<input type="range" id="' + speakerId + 'Volume-range" value="' + speaker.volume + '" min="0" max="100" step="1" class="speakerVolume" data="' + speakerId + '">';
+      speakerList += '<input type="range" id="' + speakerId + 'Volume-range" value="' + speaker.volume + '" min="0" max="100" step="1" class="speakerVolume" data="' + speaker.id + '">';
       speakerList += '</div>';
     });
 	
@@ -70,7 +70,7 @@
     $('.speakerVolume').bind("change", function(event) {
     	var volume = $(this).val();
     	var id = $(this).attr("data");
-    	socket.emit('speakerChange', { id: id, selected: true, volume: volume });
+    	socket.emit('volumeChange', { id: id, volume: volume });
     });
   }
 

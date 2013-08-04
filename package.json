@@ -1,5 +1,5 @@
 {
-  "name": "airhome",
+  "name": "airhome-management-server",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -9,6 +9,9 @@
     "express": "3.3.4",
     "ejs": "*",
     "mysql": "*",
-    "socket.io": "*"
+    "socket.io": "*",
+    "airtunes": "*",
+    "lame": "*",
+    "icecast": "*"
   }
 }
