@@ -11,10 +11,10 @@ var express = require('express')
   ,	mysql	= require('mysql')
   , connectionsArray	= []
   , connection	= mysql.createConnection({
-      host : 'localhost',
       user : 'airhome',
       password : 'airhome',
-      database : 'airhome'
+      database : 'airhome',
+      socketPath: '/var/run/mysqld/mysqld.sock'
   })
   , POLLING_INTERVAL = 3000
   , pollingTimer
